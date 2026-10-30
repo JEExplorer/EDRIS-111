@@ -21,22 +21,60 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
 
-      - name: Generate Android platform
+      - name: Generate Android files
         run: flutter create --platforms=android .
 
-      - name: Install dependencies
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36"
+
+      - name: Set compile SDK to 36
+        run: |
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          for name in [
+              "android/app/build.gradle",
+              "android/app/build.gradle.kts"
+          ]:
+              p = Path(name)
+              if p.exists():
+                  s = p.read_text()
+                  s = re.sub(
+                      r'(?m)^(\s*compileSdkVersion\s+).+$',
+                      r'\g<1>36',
+                      s
+                  )
+                  s = re.sub(
+                      r'(?m)^(\s*compileSdk\s*=\s*).+$',
+                      r'\g<1>36',
+                      s
+                  )
+                  s = re.sub(
+                      r'(?m)^(\s*compileSdk\s+).+$',
+                      r'\g<1>36',
+                      s
+                  )
+                  p.write_text(s)
+                  print("Updated:", name)
+
+          PY
+
+      - name: Install packages
         run: flutter pub get
 
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Save APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Afghan-Business-Pro
