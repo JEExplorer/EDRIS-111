@@ -313,8 +313,16 @@ class _EntryDialogState extends State<EntryDialog> {
  Future<void> _save() async {
   if(name.text.trim().isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('نام را وارد کنید.')));return;}
   double n(TextEditingController c)=>double.tryParse(c.text.trim())??0;
-  final id=widget.existing?['id']??DateTime.now().microsecondsSinceEpoch.toString();
-  final row=<String,dynamic>{'id':id,'name':name.text.trim(),'date':widget.existing?['date']??DateTime.now().toIso8601String().substring(0,10):DateTime.now().toIso8601String().substring(0,10),'note':note.text.trim(),'phone':phone.text.trim()};
+  final int q=int.tryParse(qty.text.trim())??1;
+  if(q<1 && (type=='products'||type=='sales'||type=='purchases')){
+   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تعداد باید حداقل ۱ باشد.')));
+   return;
+  }
+  final id=widget.existing == null
+      ? DateTime.now().microsecondsSinceEpoch.toString()
+      : (widget.existing!['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString());
+  final today=DateTime.now().toIso8601String().substring(0,10);
+  final row=<String,dynamic>{'id':id,'name':name.text.trim(),'date':widget.existing == null ? today : (widget.existing!['date']?.toString() ?? today),'note':note.text.trim(),'phone':phone.text.trim()};
   if(type=='products'){
    row.addAll({'category':category.text.trim(),'price':n(amount),'cost':n(cost),'qty':q,'min':int.tryParse(min.text)??2,'barcode':barcode.text.trim()});
   } else if(type=='sales'||type=='purchases'){
@@ -322,12 +330,12 @@ class _EntryDialogState extends State<EntryDialog> {
    row.addAll({'qty':count,'unitPrice':unit,'total':total,'paid':payment,'balance':(total-payment).clamp(0,total)});
    if(type=='sales'){
     final p=widget.store.products.where((e)=>e['name']==name.text.trim()).toList();
-    if(p.isNotEmpty&&!isEdit&&(p.first['qty'] as int)<count){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('موجودی کافی نیست.')));return;}
-    if(p.isNotEmpty&&!isEdit){p.first['qty']=(p.first['qty'] as int)-count;}
+    if(p.isNotEmpty&&!isEdit&&((p.first['qty'] as num?)?.toInt() ?? 0)<count){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('موجودی کافی نیست.')));return;}
+    if(p.isNotEmpty&&!isEdit){p.first['qty']=((p.first['qty'] as num?)?.toInt() ?? 0)-count;}
     row['profit']=p.isEmpty?0:(unit-(p.first['cost'] as num? ?? 0))*count;
    } else if(!isEdit){
     final p=widget.store.products.where((e)=>e['name']==name.text.trim()).toList();
-    if(p.isNotEmpty)p.first['qty']=(p.first['qty'] as int)+count;
+    if(p.isNotEmpty)p.first['qty']=((p.first['qty'] as num?)?.toInt() ?? 0)+count;
    }
   } else if(type=='expenses')row['amount']=n(amount);
   else if(type=='debts'){row['amount']=n(amount);row['paid']=n(paid);row['balance']=(n(amount)-n(paid)).clamp(0,n(amount));}
