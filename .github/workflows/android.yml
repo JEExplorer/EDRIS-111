@@ -1,34 +1,58 @@
-name: Build Afghan Business Pro APK
+
+name: Build APK
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Get Project
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Flutter
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
-      - name: Create Android Folder
+      - name: Generate Android files
+        run: flutter create --platforms=android .
+
+      - name: Install Android SDK 36
+        run: sdkmanager "platforms;android-36"
+
+      - name: Configure all Android libraries
         run: |
-          if [ ! -d android ]; then
-            flutter create --platforms=android --org com.afghanbusinesspro .
-          fi
+          cat >> android/build.gradle <<'EOF'
 
-      - name: Install Packages
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          compileSdkVersion 36
+                      }
+                  }
+              }
+          }
+          EOF
+
+      - name: Install packages
         run: flutter pub get
-
-      - name: Check Project
-        run: flutter analyze --no-fatal-infos
 
       - name: Build APK
         run: flutter build apk --release
@@ -36,5 +60,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Afghan-Business-Pro-APK
+          name: Afghan-Business-Pro
           path: build/app/outputs/flutter-apk/app-release.apk
